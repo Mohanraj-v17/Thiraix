@@ -1,35 +1,90 @@
+import { useState } from "react"
 import { NavLink, useNavigate } from "react-router-dom"
+import useVPN from "../hooks/useVPN"
+import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi"
 
 
 
 
 const Header = () => {
-  
+
 
   const activeClass = "block py-2 px-3 text-white bg-blue-700 rounded md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500";
 
   const inActiveClass = "block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 md:dark:hover:text-blue-500 dark:text-white dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
 
+  const { isVPN, loading, provider, reason, resetDetection, forceUnlock, reVerify } = useVPN();
   const navigate = useNavigate();
 
 
-  const handleSubmit = (e) => {
-     e.preventDefault();
+  const [clickCount, setClickCount] = useState(0);
 
-     const queryTerm = e.target.search.value;
-     e.target.reset();
-    
-     return navigate(`/search?q=${queryTerm}`);
-     
+  const handleShieldClick = () => {
+    // If we are currently "Secured", clicking should trigger a refresh re-check
+    if (isVPN && provider !== "Session Restored (Manual Bypass)") {
+      reVerify();
+      return;
+    }
+
+    // If we are currently in a "Manual Bypass" state, a single click should trigger a reset
+    if (provider === "Session Restored (Manual Bypass)") {
+      const confirmReset = window.confirm("You are currently using forced access. Would you like to clear this and re-verify your VPN connection?");
+      if (confirmReset) {
+        resetDetection();
+      }
+      return;
+    }
+
+    setClickCount(prev => prev + 1);
+    if (clickCount + 1 >= 3) {
+      const confirmForce = window.confirm("VPN is on but movies are still locked? Click OK to force unlock access.");
+      if (confirmForce) {
+        forceUnlock();
+      }
+      setClickCount(0); // Reset count after action
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    const queryTerm = e.target.search.value;
+    e.target.reset();
+
+    return navigate(`/search?q=${queryTerm}`);
+
   }
 
   return (
     <header>
-       <nav className="bg-white border-gray-200 dark:bg-gray-900 max-w-full">
+      <nav className="bg-white border-gray-200 dark:bg-gray-900 max-w-full">
         <div className="max-w-full flex flex-wrap items-center justify-between mx-auto p-4">
           <NavLink to="/" className="flex items-center space-x-3 rtl:space-x-reverse">
             <img src="https://flowbite.com/docs/images/logo.svg" className="h-8" alt="Flowbite Logo" />
             <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">ThiraiX</span>
+            <button onClick={handleShieldClick} className="transition-transform active:scale-95">
+              {loading ? (
+                <div title="Verifying Connection..." className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-full text-xs font-bold uppercase tracking-tight ml-2 animate-pulse">
+                  Checking...
+                </div>
+              ) : isVPN ? (
+                <div
+                  title={provider === "Session Restored (Manual Bypass)" ? "Forced Access (Click to Reset)" : `Secured: ${reason} (Click to Re-Check)`}
+                  className={`flex items-center gap-1.5 px-3 py-1 border rounded-full text-xs font-bold uppercase tracking-tight ml-2 ${provider === "Session Restored (Manual Bypass)"
+                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
+                    : "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                    }`}
+                >
+                  <HiShieldCheck className="w-4 h-4" />
+                  {provider === "Session Restored (Manual Bypass)" ? "Bypassed" : "Secured"}
+                </div>
+              ) : (
+                <div title="Unsecured (Allowed Connection)" className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-full text-xs font-bold uppercase tracking-tight ml-2">
+                  <HiShieldExclamation className="w-4 h-4" />
+                  Unsecured
+                </div>
+              )}
+            </button>
           </NavLink>
           <div className="flex md:order-2">
             <button type="button" data-collapse-toggle="navbar-search" aria-controls="navbar-search" aria-expanded="false" className="md:hidden text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-2.5 me-1">
@@ -46,7 +101,7 @@ const Header = () => {
                 <span className="sr-only">Search icon</span>
               </div>
               <form onSubmit={handleSubmit}>
-              <input type="text" id="search-navbar" name="search" className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search..."/>
+                <input type="text" id="search-navbar" name="search" className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search..." />
               </form>
             </div>
             <button data-collapse-toggle="navbar-search" type="button" className="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-search" aria-expanded="false">
@@ -63,22 +118,22 @@ const Header = () => {
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m19 19-4-4m0-7A7 7 0 1 1 1 8a7 7 0 0 1 14 0Z" />
                 </svg>
               </div>
-               <form>
-               <input type="text" id="search-navbar" name="search" className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search..."/>
-               </form>
+              <form>
+                <input type="text" id="search-navbar" name="search" className="block w-full p-2 ps-10 text-sm text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Search..." />
+              </form>
             </div>
             <ul className="flex flex-col p-4 md:p-0 mt-4 font-medium border border-gray-100 rounded-lg bg-gray-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
               <li>
-                <NavLink to="/" className={({isActive}) => isActive ? activeClass : inActiveClass} end>Home</NavLink>
+                <NavLink to="/" className={({ isActive }) => isActive ? activeClass : inActiveClass} end>Home</NavLink>
               </li>
               <li>
-                <NavLink to="/movies/popular" className={({isActive}) => isActive ? activeClass : inActiveClass}>Popular</NavLink>
+                <NavLink to="/movies/popular" className={({ isActive }) => isActive ? activeClass : inActiveClass}>Popular</NavLink>
               </li>
               <li>
-                <NavLink to="/movies/top" className={({isActive}) => isActive ? activeClass : inActiveClass}>Top</NavLink>
+                <NavLink to="/movies/top" className={({ isActive }) => isActive ? activeClass : inActiveClass}>Top</NavLink>
               </li>
               <li>
-                <NavLink to="/movies/upcoming" className={({isActive}) => isActive ? activeClass : inActiveClass}>Upcoming</NavLink>
+                <NavLink to="/movies/upcoming" className={({ isActive }) => isActive ? activeClass : inActiveClass}>Upcoming</NavLink>
               </li>
             </ul>
           </div>

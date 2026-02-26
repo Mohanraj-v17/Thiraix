@@ -2,10 +2,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import { BrowserRouter as  Router } from 'react-router-dom'
+import { BrowserRouter as Router } from 'react-router-dom'
+
+import { VPNProvider } from './context/VPNContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <Router>
-    <App />
+    <VPNProvider>
+      <App />
+    </VPNProvider>
   </Router>,
 )
